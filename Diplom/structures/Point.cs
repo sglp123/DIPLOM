@@ -1,12 +1,12 @@
-﻿namespace Diplom;
-using System.Globalization;
+﻿using System.Globalization;
 
+namespace VKR.structures;
 public enum Location
 {
-    Inside,
-    OutSide,
-    BI,
-    NotStated
+    Inside,   // 0
+    OutSide,  // 1
+    BI,       // 2
+    NotStated // 3
 }
 
 public class Point
@@ -27,7 +27,7 @@ public class Point
     /// Метод, возвращающий содержимое точки в формате строки.
     /// </summary>
     /// <returns>Форматированная строка.</returns>
-    public override string ToString() => $"{Type,11} {R.ToString("E15", CultureInfo.InvariantCulture)} {Z.ToString("E15", CultureInfo.InvariantCulture)}";
+    public override string ToString() => $"{Type} {R.ToString("E15", CultureInfo.InvariantCulture)} {Z.ToString("E15", CultureInfo.InvariantCulture)}";
 
     /// <summary>
     /// Конструктор класса Point
@@ -47,10 +47,9 @@ public class Point
     /// <exception cref="Exception"></exception>
     public Point(List<string> arr)
     {
-        R = double.Parse(arr[0]);
-        Z = double.Parse(arr[2]);
-        SubElemNum = int.Parse(arr[4]); // ! Achtung: die fehler    
-        switch (arr[3])
+        R = double.Parse(arr[1]);
+        Z = double.Parse(arr[2]);   
+        switch (arr[0])
         {
             case "Inside":
                 {

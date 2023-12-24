@@ -26,3 +26,4 @@ C:\Users\ЛаринМаркВячеславови\Desktop\Diplom\Diplom\obj\Debu
 C:\Users\ЛаринМаркВячеславови\Desktop\Diplom\Diplom\obj\Debug\net8.0\Diplom.pdb
 C:\Users\ЛаринМаркВячеславови\Desktop\Diplom\Diplom\obj\Debug\net8.0\Diplom.genruntimeconfig.cache
 C:\Users\ЛаринМаркВячеславови\Desktop\Diplom\Diplom\obj\Debug\net8.0\ref\Diplom.dll
+C:\Users\ЛаринМаркВячеславови\Desktop\Diplom\Diplom\obj\Debug\net8.0\Diplom.sourcelink.json

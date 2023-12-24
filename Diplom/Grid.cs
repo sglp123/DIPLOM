@@ -1,72 +1,43 @@
-﻿using System.Collections.Immutable;
-namespace Diplom;
+﻿using System.Collections.Immutable; //для неизменяемых массивов
+using VKR.structures;
+
+namespace VKR;
 
 public class Mesh
 {
-    // ? Надо было бы закинуть это в относительный путь, причем сделать это галантно
-    // Относительный путь до файла с перечнем точек расчетной области.
     private const string _POINTSPATH = @"C:\Users\ЛаринМаркВячеславови\Desktop\Diplom\Diplom\elems_points\Points.txt";
-
-    // Относительный путь до файла с перечнем элементов расчетной области.
     private const string _ELEMSPATH = @"C:\Users\ЛаринМаркВячеславови\Desktop\Diplom\Diplom\elems_points\Elems.txt";
 
-    // Количество узлов в области.
-    public int NodesAmountTotal
+    public int NodesAmountTotal // Количество узлов в области.
     {
         get => NodesAmountR * NodesAmountZ;
     }
-
-    // Количество элементов в фигуре.
-    public int ElemsAmount { get; set; }
-
-    // Количество узлов по оси R.
-    public int NodesAmountR
+    public int NodesAmountR // Количество узлов по оси R.
     {
         get => _nodesR.Count;
     }
 
     List<int> _nodesR_Refs;
 
-    // TODO: Постараться избавиться от этих массивов и изменить массивы ссылок на элементы.
-    // Границы по оси X без разбиений.
-    private ImmutableArray<double> _nodesRWithoutFragmentation { get; set; }
+    private ImmutableArray<double> _nodesRWithoutFragmentation { get; set; } // Узлы по R без разбиений.
+    private List<double> _nodesR; // Массив узлов по R со всеми разбиениями.
+    private string? _infoAboutR;  // [Считывается] Информация по количеству разбиений и кэфу разрядки по R.
 
-    // Массив границ по оси X.
-    private List<double> _nodesR;
-
-    // Массив количества разбиений по элементам для oX.
-    private string? _infoAboutR;
-
-
-
-
-    // Количество разбиений по оси Z.
-    public int NodesAmountZ
+    public int NodesAmountZ // Количество узлов по оси Z.
     {
         get => _nodesZ.Count;
     }
 
     List<int> _nodesZRefs;
 
-    // TODO: Постараться избавиться от этих массивов и изменить массивы ссылок на элементы
-    // Границы по оси Z без разбиений.
-    private ImmutableArray<double> _nodesZWithoutFragmentation { get; set; }
+    int ElemsAmount;
 
-    // Массив границ по оси Z.
-    private List<double> _nodesZ;
-
-    private string? _infoAboutZ;
-
-
-    // Перечень границ всех элементов.
-    public List<List<int>> Elems;
-
-
-    // Количество границ.
-    private int _bordersAmount;
-
-    // Массив всех границ.
-    private List<List<int>> _borders;
+    private ImmutableArray<double> _nodesZWithoutFragmentation { get; set; } // Узлы по Z без разбиений.
+    private List<double> _nodesZ; // Массив узлов по Z со всеми разбиениями.
+    private string? _infoAboutZ; // [Считывается] Информация по количеству разбиений по Z.
+    public List<int> Elems; // Перечень всех элементов по 4-ём точкам.
+    private int _bordersAmount; // Количество границ.
+    private List<List<int>> _borders; // Массив всех границ.
 
     private void RemakeBorders()
     {
@@ -76,12 +47,10 @@ public class Mesh
             {
                 switch (i)
                 {
-                    case 2:
-                    case 3:
+                    case 2 or 3:
                         border[i] = _nodesR_Refs[border[i]];
                         break;
-                    case 4:
-                    case 5:
+                    case 4 or 5:
                         border[i] = _nodesZRefs[border[i]];
                         break;
                 }
@@ -89,54 +58,50 @@ public class Mesh
         }
     }
 
-    /// <summary>
-    /// Метод, создающий множество точек в необходимых границах.
-    /// </summary>
     public void GenerateGrid()
     {
         int currentPosition = 0;
-        double[] php = _infoAboutR.Split().Select(double.Parse).ToArray();
-        for (int i = 0; i < _nodesRWithoutFragmentation.Length - 1; i++)
+
+        int addNodesR = int.Parse(_infoAboutR.Split()[0]); // кол-во разбиений по R
+        double kR = double.Parse(_infoAboutR.Split()[1]); // разрядка по R
+
+        double h = _nodesR[1 + currentPosition] - _nodesR[currentPosition]; // числитель
+        double denominator = 0.0;
+
+        for (int i = 0; i < addNodesR; i++)
+            denominator += Math.Pow(kR, i);
+
+        double h0 = h / denominator; // начальный шаг
+
+        for (int i = 0; i < addNodesR - 1; i++) // генерируем все узлы по R
         {
-            double h = _nodesR[1 + currentPosition] - _nodesR[currentPosition];
-            double denominator = 0.0;
-
-            int perem = Convert.ToInt32(php[2 * i]);
-            for (int j = 0; j < perem; j++)
-                denominator += Math.Pow(php[2 * i + 1], j);
-
-            double x0 = h / denominator;
-
-            for (int j = 0; j < perem - 1; j++)
-            {
-                _nodesR.Insert(currentPosition + 1, _nodesR[currentPosition] + x0 * Math.Pow(php[2 * i + 1], j));
-                currentPosition++;
-            }
+            _nodesR.Insert(currentPosition + 1, _nodesR[currentPosition] + h0 * Math.Pow(kR, i));
             currentPosition++;
-            _nodesR_Refs[i + 1] = currentPosition;
         }
+        currentPosition++;
+        _nodesR_Refs[^1] = currentPosition;
+
+        /*--- то же самое по Z ---*/
 
         currentPosition = 0;
-        php = _infoAboutZ.Split().Select(double.Parse).ToArray();
-        for (int i = 0; i < _nodesZWithoutFragmentation.Length - 1; i++)
+        int addNodesZ = int.Parse(_infoAboutZ.Split()[0]);
+        double kZ = double.Parse(_infoAboutZ.Split()[1]);
+
+        h = _nodesZ[1 + currentPosition] - _nodesZ[currentPosition];
+        denominator = 0.0;
+
+        for (int j = 0; j < addNodesZ; j++)
+            denominator += Math.Pow(kZ, j);
+        h0 = h / denominator;
+
+        for (int j = 0; j < addNodesZ - 1; j++)
         {
-            double h = _nodesZ[1 + currentPosition] - _nodesZ[currentPosition];
-            double denominator = 0.0;
-
-            int perem = Convert.ToInt32(php[2 * i]);
-            for (int j = 0; j < perem; j++)
-                denominator += Math.Pow(php[2 * i + 1], j);
-            double x0 = h / denominator;
-
-            for (int j = 0; j < perem - 1; j++)
-            {
-                _nodesZ.Insert(currentPosition + 1, _nodesZ[currentPosition] + x0 * Math.Pow(php[2 * i + 1], j));
-                currentPosition++;
-            }
+            _nodesZ.Insert(currentPosition + 1, _nodesZ[currentPosition] + h0 * Math.Pow(kZ, j));
             currentPosition++;
-            _nodesZRefs[i + 1] = currentPosition;
-
         }
+        currentPosition++;
+        _nodesZRefs[^1] = currentPosition;
+
         RemakeBorders();
     }
 
@@ -147,48 +112,39 @@ public class Mesh
     {
         using var sw = new StreamWriter(_POINTSPATH);
         sw.WriteLine(NodesAmountTotal);
-        int i = 0;
         foreach (var Z in _nodesZ)
             foreach (var R in _nodesR)
-            {
                 sw.WriteLine($"{SetPointType(new Point(R, Z))}");
-                i++;
-            }
     }
 
-    // ? Убедиться в правильности порядка учета краевых условий.
     /// <summary>
     /// Метод, устанавливающий тип точки.
     /// </summary>
-    /// <param name="pnt">Точка</param>
-    private Point SetPointType(Point pnt)
+    /// <param name="point">Точка</param>
+    private Point SetPointType(Point point)
     {
-        for (int i = 0; i < Elems.Count; i++)
+        if (_nodesRWithoutFragmentation[0] <= point.R && point.R <= _nodesRWithoutFragmentation[1] && // проверка на граничную или
+            _nodesZWithoutFragmentation[0] >= point.Z && point.Z >= _nodesZWithoutFragmentation[1])   // внешнюю точку (можно будет убрать)
         {
-            if (_nodesRWithoutFragmentation[Elems[i][1]] <= pnt.R && pnt.R <= _nodesRWithoutFragmentation[Elems[i][2]] &&
-                _nodesZWithoutFragmentation[Elems[i][3]] >= pnt.Z && pnt.Z >= _nodesZWithoutFragmentation[Elems[i][4]])
+            int minValue = 4;
+            foreach (var arr in _borders)
             {
-                int minValue = 4;
-                foreach (var arr in _borders)
+                if (_nodesR[arr[2]] <= point.R && point.R <= _nodesR[arr[3]] && 
+                    _nodesZ[arr[4]] >= point.Z && point.Z >= _nodesZ[arr[5]] &&
+                    arr[0] < minValue)
                 {
-                    if (_nodesR[arr[2]] <= pnt.R && pnt.R <= _nodesR[arr[3]] &&
-                        _nodesZ[arr[4]] >= pnt.Z && pnt.Z >= _nodesZ[arr[5]] &&
-                        arr[0] < minValue)
-                    {
-                        minValue = arr[0];
-                        break;
-                    }
-                }
-                switch (minValue)
-                {
-                    case 1: { pnt.Type = Location.BI; break; }
-                    default: { pnt.Type = Location.Inside; pnt.SubElemNum = i; break; }
+                    minValue = arr[0];
+                    break;
                 }
             }
-            else if (pnt.Type == Location.NotStated)
-                pnt.Type = Location.OutSide;
+            switch (minValue)
+            {
+                case 1: { point.Type = Location.BI; break; }
+                default: { point.Type = Location.Inside; point.SubElemNum = 0; break; }
+            }
         }
-        return pnt;
+        else point.Type = Location.OutSide;
+        return point;
     }
 
     // TODO: сделать генерацию, которая сможет склеить множество элементов
@@ -199,19 +155,17 @@ public class Mesh
     {
         using var sw = new StreamWriter(_ELEMSPATH);
         sw.WriteLine((_nodesR.Count - 1) * (_nodesZ.Count - 1));
-        for (int k = 0; k < _nodesZ.Count - 1; k++)
-            for (int i = 0; i < _nodesR.Count - 1; i++)
-                sw.WriteLine($"{k * _nodesR.Count + i} {k * _nodesR.Count + i + 1} " +
-                             $"{(k + 1) * _nodesR.Count + i} {(k + 1) * _nodesR.Count + i + 1}");
+        for (int i = 0; i < _nodesZ.Count - 1; i++)
+            for (int j = 0; j < _nodesR.Count - 1; j++)
+                sw.WriteLine($"{i * _nodesR.Count + j} {i * _nodesR.Count + j + 1} {(i + 1) * _nodesR.Count + j} {(i + 1) * _nodesR.Count + j + 1}");
     }
 
     public void ReadFrom(string path1, string path2)
     {
-        string _currPath = path1;
+        string currPath = path1;
         try
         {
-            // Считывание параметров для расчетной области.
-            using (var sr = new StreamReader(_currPath))
+            using (var sr = new StreamReader(currPath)) // Считывание параметров для расчетной области.
             {
                 _nodesR = sr.ReadLine().Split().Select(double.Parse).ToList();
                 for (int i = 0; i < _nodesR.Count; i++)
@@ -225,15 +179,13 @@ public class Mesh
                 _nodesZWithoutFragmentation = _nodesZ.ToImmutableArray();
                 _infoAboutZ = sr.ReadLine() ?? "";
 
-
-                ElemsAmount = int.Parse(sr.ReadLine() ?? "0");
-                for (int i = 0; i < ElemsAmount; i++)
-                    Elems.Add(sr.ReadLine().Split().Select(int.Parse).ToList());
+                ElemsAmount = 1;
+                Elems = [1, 0, 1, 0, 1];
             }
 
             // Считывание данных для границ.
-            _currPath = path2;
-            using (var sr = new StreamReader(_currPath))
+            currPath = path2;
+            using (var sr = new StreamReader(currPath))
             {
                 _bordersAmount = int.Parse(sr.ReadLine() ?? "0");
                 for (int i = 0; i < _bordersAmount; i++)
@@ -241,15 +193,15 @@ public class Mesh
 
             }
         }
-        catch (IOException ex)
+        catch (IOException ex)  // Ошибка при считывание данных для границ.
         {
-            Console.WriteLine($"Error during reading {_currPath} file: {ex}");
+            Console.WriteLine($"Error during reading {currPath} file: {ex}");
             throw;
         }
     }
 
     /// <summary>
-    /// Конструктор класса 3D-сетки.
+    /// Конструктор класса 2D-сетки.
     /// </summary>
     public Mesh()
     {
